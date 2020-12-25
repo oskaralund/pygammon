@@ -89,17 +89,30 @@ def is_legal_move(board, player, point, distance):
 
     end_point = point + distance * player
 
-    # Check if distance is within legal range
+    # Is distance is within legal range?
     if not 1 <= distance <= 6:
         return False
 
-    if end_point > 24:  # Are we trying to move off the board?
+    # Is there a checker to move at the point?
+    if player == -1 and board[point] >= 0:
+        return False
+
+    if player == 1 and board[point] <= 0:
+        return False
+
+    # Are we trying to move a checker while captured?
+    if player == 1 and point != 0 and board[0] > 0:
+        return False
+
+    # Are they trying to move a checker while captured?
+    if player == -1 and point != 25 and board[25] < -1:
+        return False
+
+    # Are we trying to move off the board?
+    if end_point > 24:
         # Illegal if not all checkers on home board
         if any([b > 0 for b in board[0:19]]):
             return False
-        # Legal if all checkers on home board and checker bears off exactly
-        elif end_point == 25:
-            return True
         # Illegal if checkers does not bear off exactly and has checkers behind
         elif any([b > 0 for b in board[19:point]]):
             return False
@@ -138,7 +151,7 @@ def has_legal_move(board, player, distance):
         False if the distance cannot be moved legally.
     """
 
-    for i,_ in enumerate(board):
+    for i, _ in enumerate(board):
         if is_legal_move(board, player, i, distance):
             pass
 
@@ -159,16 +172,19 @@ def is_legal_play(board, player, dice, play):
     """
 
     if dice[0] != dice[1]:  # Not a double roll
-        # Two moves and both legal?
-        if len(play) == 2 and all(
+        # Two moves but not both legal?
+        if len(play) == 2 and not all(
             [is_legal_move(board, player, p[0], p[1]) for p in play]
         ):
-            return True
+            return False
 
         # Trying to move lower roll only, but larger roll has legal move?
-        if len(play) == 1 and play[0][1] == min(dice):
-            pass
-
+        if (
+            len(play) == 1
+            and play[0][1] == min(dice)
+            and any([is_legal_move(board, player, i, max(dice)) for i in range(25)])
+        ):
+            return False
 
 
 def move(board, player, point, distance):

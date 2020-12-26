@@ -7,8 +7,10 @@ A backgammon board is represented by a list of length 26. For example
 is the starting position. The 0th and the 25th elements represents the bars.
 """
 
+import itertools as it
 
-def draw_table(board):
+
+def draw(board):
     """
     Prints an ascii representation of a Backgammon board.
     """
@@ -68,6 +70,36 @@ def winner(board):
         return -1
     else:
         return 0
+
+
+def num_possible_moves(board, player, dice):
+    """
+    Compute the maximum number of moves possible (0-4).
+
+    Input:
+        board - an iterable representing a Backgammon board.
+        player - 1 for player, -1 for opponent.
+        dice - a list [d1,d2] representing the state of the dice.
+
+    Returns:
+        An integer between 0 and 4.
+    """
+
+    max_moves = 0
+
+    # Not a double roll
+    if dice[0] != dice[1]:
+        for i,d1 in it.product(range(26), dice):
+            if is_legal_move(board, player, i, d1):
+                max_moves = 1
+                new_board = move(board, player, i, d1)
+                d2 = dice[0] if dice[0] != d1 else dice[1]
+                for j in range(26):
+                    if is_legal_move(new_board, player, j, d2):
+                        max_moves = 2
+                        break
+
+    return max_moves
 
 
 def is_legal_move(board, player, point, distance):
@@ -194,8 +226,8 @@ def move(board, player, point, distance):
     Input:
         board - an iterable representing a Backgammon board.
         player - 1 for player, -1 for opponent.
-        point - point you want to move from (1-24).
-        distance - distance you want to move.
+        point - point to move from (1-24).
+        distance - distance to move.
 
     Returns:
         A new board with the move performed.
@@ -204,9 +236,23 @@ def move(board, player, point, distance):
 
     new_board = board.copy()
 
-    new_board[point] -= player
-    if 0 < point + player * distance < 24:
-        new_board[point + player * distance] += player
+    end_point = point + player * distance
+
+    # Normal non-capturing move inside board
+    if 0 < end_point < 24 and board[end_point] + player != 0:
+        new_board[point] -= player
+        new_board[end_point] += player
+
+    # Capture move
+    if 0 < end_point < 24 and board[end_point] + player == 0:
+        new_board[point] -= player
+        new_board[end_point] = player
+        bar_point = 0 if player == -1 else 25
+        new_board[bar_point] -= player
+
+    # Move off the board
+    if not 0 < end_point < 24:
+        new_board[point] -= player
 
     return new_board
 
@@ -242,4 +288,4 @@ if __name__ == "__main__":
     ]
 
     board = move(board, 1, 1, 1)
-    draw_table(board)
+    draw(board)

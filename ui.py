@@ -1,5 +1,6 @@
 import pdb
 import curses
+from curses.textpad import rectangle
 import backgammon as bg
 
 
@@ -56,13 +57,37 @@ def main(stdscr):
     board_win = curses.newwin(13, 15, int(rows / 2) - 5, int(cols / 2) - 6)
     upper_indicators_win = curses.newwin(1, 15, int(rows / 2) - 6, int(cols / 2) - 6)
     lower_indicators_win = curses.newwin(1, 15, int(rows / 2) + 6, int(cols / 2) - 6)
+    die1_win = curses.newwin(6, 6, int(rows / 2) - 4, int(cols / 2) - 14)
+    die2_win = curses.newwin(6, 6, int(rows / 2) + 2, int(cols / 2) - 14)
     game = bg.Game()
     game.roll_dice()
     draw_board(board_win, game.board)
 
+    die_strings = [
+        "     \n  o  \n     ",
+        "    o\n     \no    ",
+        "    o\n  o  \no    ",
+        "o   o\n     \no   o",
+        "o   o\n  o  \no   o",
+        "o   o\no   o\no   o",
+    ]
+
     while True:
         upper_indicators_win.clear()
         lower_indicators_win.clear()
+        stdscr.clear()
+
+        y, x = board_win.getyx()
+
+        # Draw dice
+        die1_win.clear()
+        die1_win.addstr(0, 0, die_strings[game.dice[0] - 1])
+        die1_win.refresh()
+        die2_win.clear()
+        die2_win.addstr(0, 0, die_strings[game.dice[1] - 1])
+        die2_win.refresh()
+
+        board_win.move(y,x)
         key = board_win.getkey()
 
         # Handle movement
@@ -76,6 +101,8 @@ def main(stdscr):
         if key == "h" or key == "D":
             board_win.move(y, max(x - 1, 0))
         y, x = board_win.getyx()
+
+        board_win.refresh()
 
         # Determine selected point
         selected_point = -1
@@ -102,24 +129,25 @@ def main(stdscr):
 
         for l in legal_targets:
             if l <= 6:
-                target = 13-l
-                upper_indicators_win.addstr(0,target,"x")
+                target = 13 - l
+                upper_indicators_win.addstr(0, target, "x")
             if 6 < l <= 12:
-                target = 12-l
-                upper_indicators_win.addstr(0,target,"x")
+                target = 12 - l
+                upper_indicators_win.addstr(0, target, "x")
             if 12 < l <= 18:
-                target = l-13
-                lower_indicators_win.addstr(0,target,"x")
+                target = l - 13
+                lower_indicators_win.addstr(0, target, "x")
             if l > 18:
-                target = l-12
-                lower_indicators_win.addstr(0,target,"x")
-        upper_indicators_win.refresh()
-        lower_indicators_win.refresh()
+                target = l - 12
+                lower_indicators_win.addstr(0, target, "x")
+
+        # Draw end turn dialog if turn endable
+        if game.turn_endable():
+            stdscr.addstr(int(rows / 2) - 7, int(cols / 2) - 5, "(E)nd turn?")
 
 
         draw_board(board_win, game.board)
         stdscr.refresh()
-        board_win.refresh()
 
 
 curses.wrapper(main)

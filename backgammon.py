@@ -8,6 +8,39 @@ is the starting position. The 0th and the 25th elements represents the bars.
 """
 
 import itertools as it
+import random
+import pdb
+
+
+def get_new_board():
+    return [
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        -5,
+        0,
+        -3,
+        0,
+        0,
+        0,
+        5,
+        -5,
+        0,
+        0,
+        0,
+        3,
+        0,
+        5,
+        0,
+        0,
+        0,
+        0,
+        -2,
+        0,
+    ]
 
 
 def draw(board):
@@ -49,7 +82,7 @@ def draw(board):
                 board_string += empty_symbol
         board_string += "\n"
 
-    print(board_string)
+    return board_string
 
 
 def winner(board):
@@ -77,7 +110,7 @@ def num_possible_moves(board, player, dice):
     Compute the maximum number of moves possible (0-4).
 
     Input:
-        board - an iterable representing a Backgammon board.
+        board - an iterable representing a Backgammon board at the start of a turn.
         player - 1 for player, -1 for opponent.
         dice - a list [d1,d2] representing the state of the dice.
 
@@ -89,7 +122,7 @@ def num_possible_moves(board, player, dice):
 
     # Not a double roll
     if dice[0] != dice[1]:
-        for i,d1 in it.product(range(26), dice):
+        for i, d1 in it.product(range(26), dice):
             if is_legal_move(board, player, i, d1):
                 max_moves = 1
                 new_board = move(board, player, i, d1)
@@ -98,6 +131,17 @@ def num_possible_moves(board, player, dice):
                     if is_legal_move(new_board, player, j, d2):
                         max_moves = 2
                         break
+
+    # Double roll
+    if dice[0] == dice[1]:
+        d = dice[0]
+        new_board = board.copy()
+        for _ in range(4):
+            for i in range(26):
+                if is_legal_move(new_board, player, i, d):
+                    max_moves += 1
+                    new_board = move(board, player, i, d)
+                    break
 
     return max_moves
 
@@ -137,7 +181,7 @@ def is_legal_move(board, player, point, distance):
         return False
 
     # Are they trying to move a checker while captured?
-    if player == -1 and point != 25 and board[25] < -1:
+    if player == -1 and point != 25 and board[25] < 0:
         return False
 
     # Are we trying to move off the board?
@@ -199,24 +243,24 @@ def is_legal_play(board, player, dice, play):
         play - a list of moves [point, distance] defining the play.
 
     Returns:
-        True if the play is legal.
-        False if the play is illegal.
+        True if the play is legal (i.e. the turn can be ended).
+        False if the play is illegal (i.e. the turn cannot be ended).
     """
 
-    if dice[0] != dice[1]:  # Not a double roll
-        # Two moves but not both legal?
-        if len(play) == 2 and not all(
-            [is_legal_move(board, player, p[0], p[1]) for p in play]
-        ):
+    required_number_of_moves = num_possible_moves(board, player, dice)
+
+    # Fewer than required number of moves
+    if len(play) < required_number_of_moves:
+        return False
+
+    new_board = board.copy()
+    for p in play:
+        if is_legal_move(new_board, player, p[0], p[1]):
+            new_board = move(board, player, p[0], p[1])
+        else:
             return False
 
-        # Trying to move lower roll only, but larger roll has legal move?
-        if (
-            len(play) == 1
-            and play[0][1] == min(dice)
-            and any([is_legal_move(board, player, i, max(dice)) for i in range(25)])
-        ):
-            return False
+    return True
 
 
 def move(board, player, point, distance):
@@ -257,35 +301,105 @@ def move(board, player, point, distance):
     return new_board
 
 
-if __name__ == "__main__":
-    board = [
-        0,
-        2,
-        0,
-        0,
-        0,
-        0,
-        -5,
-        0,
-        -3,
-        0,
-        0,
-        0,
-        5,
-        -5,
-        0,
-        0,
-        0,
-        3,
-        0,
-        5,
-        0,
-        0,
-        0,
-        0,
-        -2,
-        0,
+def legal_targets(board, player, point, distances):
+    """
+    Return legal target points, i.e. possible points to move to given a starting point and a list of distances.
+
+    Input:
+        board - an iterable representing a Backgammon board.
+        player - 1 for player, -1 for opponent.
+        point - point to move from (1-24).
+        distances - possible distances to move.
+
+    Returns:
+        A list of legal target points.
+    """
+    targets = [
+        point + player * d for d in distances if is_legal_move(board, player, point, d)
     ]
 
+    for i in range(len(targets)):
+        targets[i] = 0 if targets[i] < 1 else targets[i]
+        targets[i] = 25 if targets[i] > 24 else targets[i]
+
+    return targets
+
+
+class Game:
+    """
+    A class representing a Backgammon game.
+    """
+
+    def __init__(self):
+        self.board = get_new_board()
+        self.board_at_turn_start = self.board.copy()
+        self.dice = [1, 1]
+        self.active_player = 1
+        self.history = []
+        self.moves = []
+        self.current_play = []
+
+    def roll_dice(self):
+        self.dice = [random.randint(1, 6), random.randint(1, 6)]
+        if self.dice[0] == self.dice[1]:
+            self.moves = [self.dice[0]] * 4
+        else:
+            self.moves = self.dice.copy()
+
+    def move(self, point, distance):
+        if distance in self.moves and is_legal_move(
+            self.board, self.active_player, point, distance
+        ):
+            self.board = move(self.board, self.active_player, point, distance)
+            self.moves.remove(distance)
+            self.current_play.append([point, distance])
+
+            return True
+
+        return False
+
+    def max_move(self, point):
+        if self.moves == []:
+            return
+
+        if self.move(point, max(self.moves)):
+            pass
+        else:
+            self.move(point, min(self.moves))
+
+    def end_turn(self):
+        if self.turn_endable():
+            self.history.append((self.active_player, self.current_play))
+            self.active_player *= -1
+            self.current_play = []
+            self.board_at_turn_start = self.board.copy()
+            self.roll_dice()
+
+    def turn_endable(self):
+        if is_legal_play(
+            self.board_at_turn_start,
+            self.active_player,
+            self.dice,
+            self.current_play,
+        ):
+            return True
+
+    def undo(self):
+        if self.current_play == []:
+            return
+
+        m = self.current_play.pop()
+        self.moves.append(m[1])
+        self.board = self.board_at_turn_start.copy()
+        for p in self.current_play:
+            self.board = move(self.board, self.active_player, p[0], p[1])
+
+    def get_legal_targets(self, point):
+        return legal_targets(self.board, self.active_player, point, self.moves)
+
+
+if __name__ == "__main__":
+    board = get_new_board()
+
     board = move(board, 1, 1, 1)
-    draw(board)
+    print(draw(board))

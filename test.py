@@ -29,3 +29,10 @@ class TestBackgammon(unittest.TestCase):
         new_board = bg.move(self.start_board, 1, 19, 6)
         self.assertEqual(new_board, target_board)
 
+    def test_illegal_play(self):
+        legal = bg.is_legal_play(self.start_board, 1, [1,5], [[1,5],[1,1]])
+        self.assertFalse(legal)
+
+    def test_legal_play(self):
+        legal = bg.is_legal_play(self.start_board, 1, [1,3], [[17,3],[19,1]])
+        self.assertTrue(legal)

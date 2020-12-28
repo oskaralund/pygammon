@@ -32,7 +32,6 @@ def board_to_matrix(board):
 
 
 def draw_board(board_win, board):
-    y, x = board_win.getyx()
     M = board_to_matrix(board)
 
     for i in range(10):
@@ -49,19 +48,30 @@ def draw_board(board_win, board):
             col = j if j < 6 else j + 1
             board_win.addstr(row, col, tile)
 
-    board_win.move(y, x)
-
 
 def main(stdscr):
     rows, cols = stdscr.getmaxyx()
-    board_win = curses.newwin(13, 15, int(rows / 2) - 5, int(cols / 2) - 6)
-    upper_indicators_win = curses.newwin(1, 15, int(rows / 2) - 6, int(cols / 2) - 6)
-    lower_indicators_win = curses.newwin(1, 15, int(rows / 2) + 6, int(cols / 2) - 6)
-    die1_win = curses.newwin(6, 6, int(rows / 2) - 4, int(cols / 2) - 14)
-    die2_win = curses.newwin(6, 6, int(rows / 2) + 2, int(cols / 2) - 14)
+
+    prows = 40
+    pcols = 40
+    play_area = curses.newwin(
+        prows, pcols, int(rows / 2 - prows / 2), int(cols / 2 - pcols / 2)
+    )
+    board_win = play_area.derwin(13, 15, int(prows / 2) - 5, int(pcols / 2) - 6)
+    upper_indicators_win = play_area.derwin(1, 15, int( prows / 2 ) - 6, int(pcols / 2) - 6)
+    lower_indicators_win = play_area.derwin(1, 15, int( prows / 2 ) + 6, int( pcols / 2 ) - 6)
+    die1_win = play_area.derwin(6, 6, int( prows / 2 ) - 4, int( pcols / 2 ) - 14)
+    die2_win = play_area.derwin(6, 6, int( prows / 2 ) + 2, int( pcols / 2 ) - 14)
+    end_turn_win = play_area.derwin(1, 15, int( prows / 2 ) - 7, int( pcols / 2 ) - 5)
+
+    # board_win = curses.newwin(13, 15, int(rows / 2) - 5, int(cols / 2) - 6)
+    # upper_indicators_win = curses.newwin(1, 15, int(rows / 2) - 6, int(cols / 2) - 6)
+    # lower_indicators_win = curses.newwin(1, 15, int(rows / 2) + 6, int(cols / 2) - 6)
+    # die1_win = curses.newwin(6, 6, int(rows / 2) - 4, int(cols / 2) - 14)
+    # die2_win = curses.newwin(6, 6, int(rows / 2) + 2, int(cols / 2) - 14)
+    # end_turn_win = curses.newwin(1, 15, int(rows / 2) - 7, int(cols / 2) - 5)
     game = bg.Game()
     game.roll_dice()
-    draw_board(board_win, game.board)
 
     die_strings = [
         "     \n  o  \n     ",
@@ -73,36 +83,26 @@ def main(stdscr):
     ]
 
     while True:
-        upper_indicators_win.clear()
-        lower_indicators_win.clear()
-        stdscr.clear()
-
         y, x = board_win.getyx()
+        play_area.clear()
+        M = board_to_matrix(game.board)
 
-        # Draw dice
-        die1_win.clear()
+        for i in range(10):
+            for j in range(12):
+                tile = "|"
+                if M[i][j] == 1:
+                    tile = "w"
+                if M[i][j] == -1:
+                    tile = "b"
+                if abs(M[i][j]) > 1:
+                    tile = str(abs(M[i][j]))
+
+                row = i if i < 5 else i + 1
+                col = j if j < 6 else j + 1
+                board_win.addstr(row, col, tile)
+
         die1_win.addstr(0, 0, die_strings[game.dice[0] - 1])
-        die1_win.refresh()
-        die2_win.clear()
         die2_win.addstr(0, 0, die_strings[game.dice[1] - 1])
-        die2_win.refresh()
-
-        board_win.move(y,x)
-        key = board_win.getkey()
-
-        # Handle movement
-        y, x = board_win.getyx()
-        if key == "l" or key == "C":
-            board_win.move(y, min(x + 1, 12))
-        if key == "j" or key == "B":
-            board_win.move(min(y + 1, 10), x)
-        if key == "k" or key == "A":
-            board_win.move(max(y - 1, 0), x)
-        if key == "h" or key == "D":
-            board_win.move(y, max(x - 1, 0))
-        y, x = board_win.getyx()
-
-        board_win.refresh()
 
         # Determine selected point
         selected_point = -1
@@ -115,14 +115,6 @@ def main(stdscr):
             selected_point = 12 - x
         if y < 5 and x > 6:
             selected_point = 12 - x + 1
-
-        # Handle action
-        if key == " ":
-            game.max_move(selected_point)
-        if key == "u":
-            game.undo()
-        if key == "e":
-            game.end_turn()
 
         # Draw indicators
         legal_targets = game.get_legal_targets(selected_point)
@@ -143,11 +135,30 @@ def main(stdscr):
 
         # Draw end turn dialog if turn endable
         if game.turn_endable():
-            stdscr.addstr(int(rows / 2) - 7, int(cols / 2) - 5, "(E)nd turn?")
+            end_turn_win.addstr(0, 0, "(E)nd turn?")
 
+        play_area.refresh()
 
-        draw_board(board_win, game.board)
-        stdscr.refresh()
+        board_win.move(y, x)
+        key = board_win.getkey()
+
+        # Handle movement
+        if key == "l" or key == "C":
+            board_win.move(y, min(x + 1, 12))
+        if key == "j" or key == "B":
+            board_win.move(min(y + 1, 10), x)
+        if key == "k" or key == "A":
+            board_win.move(max(y - 1, 0), x)
+        if key == "h" or key == "D":
+            board_win.move(y, max(x - 1, 0))
+
+        # Handle action
+        if key == " ":
+            game.max_move(selected_point)
+        if key == "u":
+            game.undo()
+        if key == "e":
+            game.end_turn()
 
 
 curses.wrapper(main)

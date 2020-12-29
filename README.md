@@ -1,4 +1,4 @@
-#pygammon
+# pygammon
 A python backgammon engine.
 
 ## Example

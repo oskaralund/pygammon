@@ -256,7 +256,7 @@ def is_legal_play(board, player, dice, play):
     new_board = board.copy()
     for p in play:
         if is_legal_move(new_board, player, p[0], p[1]):
-            new_board = move(board, player, p[0], p[1])
+            new_board = move(new_board, player, p[0], p[1])
         else:
             return False
 
@@ -354,18 +354,23 @@ class Game:
             self.moves.remove(distance)
             self.current_play.append([point, distance])
 
-            return True
-
-        return False
-
     def max_move(self, point):
         if self.moves == []:
             return
 
-        if self.move(point, max(self.moves)):
-            pass
-        else:
+        if is_legal_move(self.board, self.active_player, point, max(self.moves)):
+            self.move(point, max(self.moves))
+        elif is_legal_move(self.board, self.active_player, point, min(self.moves)):
             self.move(point, min(self.moves))
+
+    def min_move(self, point):
+        if self.moves == []:
+            return
+
+        if is_legal_move(self.board, self.active_player, point, min(self.moves)):
+            self.move(point, min(self.moves))
+        elif is_legal_move(self.board, self.active_player, point, max(self.moves)):
+            self.move(point, max(self.moves))
 
     def end_turn(self):
         if self.turn_endable():
